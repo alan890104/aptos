@@ -1,5 +1,7 @@
 # Aptos Defender Demo
 
+![ HOMEPAGE ](./images/homepage.png)
+
 ## Installation
 
 1. Install python 3.10 or higher
