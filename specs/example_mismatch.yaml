@@ -1,0 +1,37 @@
+aptos_defi_approved_lists:
+  - name: LiquidSwapV2
+    address: 0x190d44266241744264b964a37b8f09863167a12d3e70cda39376cfb4e3561e12
+    packages:
+      - name: LiquidswapRouterV2
+        approved:
+          - v1
+        modules:
+          - router_v2
+          - scripts_v2
+      - name: LiquidswapRouterV3
+        approved:
+          - v0
+        modules:
+          - stable_curve_v2
+          - math_v2
+          - router_v3
+          - scripts_v3
+      - name: Liquidswap
+        approved:
+          - v2
+        modules:
+          - math 
+          - curves
+          - coin_helper
+          - global_config
+          - dao_storage
+          - emergency
+          - stable_curve
+          - liquidity_pool
+          - router
+          - scripts
+      - name: LiquidswapInit
+        approved:
+          - v0
+        modules:
+          - lp_account

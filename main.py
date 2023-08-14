@@ -4,7 +4,7 @@ import warnings
 import pandas as pd
 import os
 import yaml
-from io import BytesIO
+from argparse import ArgumentParser
 from tempfile import _TemporaryFileWrapper
 
 warnings.filterwarnings("ignore")
@@ -70,33 +70,28 @@ def handle_analyze(
         )
 
         if matched_pkg:
-            approved_versions = list(
-                map(lambda x: x.lstrip("v"), matched_pkg["approved"])
-            )
-            is_version_approved = runtime_pkg["version"] in approved_versions
-            is_modules_match = set(runtime_pkg["modules"]) == set(
-                matched_pkg["modules"]
-            )
+            is_version_approved = f"v{runtime_pkg['version']}" in matched_pkg["approved"]
+            is_modules_match = set(runtime_pkg["modules"]) == set(matched_pkg["modules"])
             matched = is_version_approved and is_modules_match
         else:
             matched = False
 
         contract_name = matched_pkg["name"] if matched_pkg else "Unknown"
-        approved_versions_str = ", ".join(approved_versions) if matched_pkg else "N/A"
+        approved_versions_str = ", ".join(matched_pkg["approved"]) if matched_pkg else "N/A"
 
         rows.append(
             {
                 "package name": runtime_pkg["package"],
                 "contract name": contract_name,
                 "address": contract_address,
-                "onchain package version": runtime_pkg["version"],
+                "onchain package version": f"v{runtime_pkg['version']}",
                 "approved versions": approved_versions_str,
                 "matched": "✅" if matched else "❌",
             }
         )
 
     df = pd.DataFrame(rows)
-    df = df.sort_values(by=["matched"], ascending=True)
+    df = df.sort_values(by=["matched"], ascending=False)
 
     return df, onchain_data
 
@@ -136,9 +131,20 @@ def handle_refresh_specs() -> list:
     return os.listdir("specs")
 
 
+def get_parser() -> ArgumentParser:
+    parser = ArgumentParser()
+    parser.add_argument("--host", type=str, default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=7860)
+    parser.add_argument("--debug", action="store_true")
+    return parser
+
+
 if __name__ == "__main__":
     APP_TITLE = "Aptos Defender Demo"
     APP_DESC = "Check different versions of package deployed on-chain."
+
+    parser = get_parser()
+    args = parser.parse_args()
 
     dropdown_endpoint = gr.Dropdown(
         label="Mainnet Endpoint",
@@ -164,11 +170,9 @@ if __name__ == "__main__":
     )
 
     spec = gr.Code(
-        value=open("specs/example.yaml").read()
-        if os.path.exists("specs/example.yaml")
-        else None,
+        value=open("specs/example.yaml").read() if os.path.exists("specs/example.yaml") else None,
         language="yaml",
-        interactive=False,
+        interactive=True,
     )
 
     output_dataframe = gr.Dataframe(
@@ -189,12 +193,8 @@ if __name__ == "__main__":
     )
 
     with gr.Blocks() as demo:
-        gr.Markdown(
-            f"<h1 style='text-align: center; margin-bottom: 1rem'>{APP_TITLE}</h1>"
-        )
-        gr.Markdown(
-            f"<h3 style='text-align: center; margin-bottom: 1rem'>{APP_DESC}</h3>"
-        )
+        gr.Markdown(f"<h1 style='text-align: center; margin-bottom: 1rem'>{APP_TITLE}</h1>")
+        gr.Markdown(f"<h3 style='text-align: center; margin-bottom: 1rem'>{APP_DESC}</h3>")
         with gr.Tab("Analyzer"):
             input_contract.render()
             with gr.Row():
@@ -242,4 +242,4 @@ if __name__ == "__main__":
             dropdown_registry.render()
 
     demo.queue()
-    demo.launch(inbrowser=True)
+    demo.launch(server_name=args.host, server_port=args.port, debug=args.debug)
