@@ -46,8 +46,6 @@ def handle_analyze(
         gr.Warning("Please fill in spec")
         return None, []
 
-    total_tasks = 3
-
     onchain_data = get_onchain_modules(endpoint, registry, contract_address)
 
     spec: dict = yaml.safe_load(spec_str)
@@ -97,30 +95,33 @@ def handle_analyze(
 
 
 def handle_upload_spec(fileobj: _TemporaryFileWrapper):
-    # Check filename
-    basename = os.path.basename(fileobj.name)
-    if basename == "example.yaml":
-        gr.Warning("Please upload a spec file with different name")
-        return None, os.listdir("specs")
-    # Check file type
-    if not basename.endswith(".yaml"):
-        gr.Warning("Please upload a spec file with .yaml extension")
-        return None, os.listdir("specs")
-    # Check file content
-    body: str = fileobj.read().decode("utf-8")
-    if not body:
-        gr.Warning("Please upload a spec file with content")
-        return None, os.listdir("specs")
-    # Check file format
     try:
-        yaml.safe_load(body)
+        # Get file content
+        with open(fileobj.name, "rb") as f:
+            content = f.read()
+        # Check filename
+        basename = os.path.basename(fileobj.name)
+
+        def refresh_specs() -> list:
+            spec_files = set(os.listdir("specs"))
+            spec_files.add(basename)
+            return gr.Dropdown.update(choices=spec_files)
+
+        if basename == "example.yaml":
+            gr.Warning("Please upload a spec file with different name")
+            return None, refresh_specs()
+        # Check file type
+        if not basename.endswith(".yaml"):
+            gr.Warning("Please upload a spec file with .yaml extension")
+            return None, refresh_specs()
+        # Save file
+        with open(f"specs/{basename}", "wb") as f:
+            f.write(content)
+        return f"specs/{basename}", refresh_specs()
     except Exception as e:
-        gr.Warning(f"Invalid spec file: {e}")
+        gr.Warning(f"Failed to upload spec: {e}")
+        print(e)
         return None, os.listdir("specs")
-    # Save file
-    with open(f"specs/{basename}", "w") as f:
-        f.write(body)
-    return f"specs/{basename}", os.listdir("specs")
 
 
 def handle_select_spec(dropdown_spec: str) -> str:
@@ -133,7 +134,7 @@ def handle_refresh_specs() -> list:
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument("--host", type=str, default="0.0.0.0")
+    parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--debug", action="store_true")
     return parser
@@ -226,14 +227,14 @@ if __name__ == "__main__":
                         inputs=[dropdown_spec],
                         outputs=[spec],
                     )
-                # TODO: Upload file is still buggy, it always returns empty body
-                # with gr.Column():
-                #     upload_spec = gr.File(file_types=["yaml"], label="Upload Spec")
-                #     upload_spec.upload(
-                #         fn=handle_upload_spec,
-                #         inputs=[upload_spec],
-                #         outputs=[upload_spec, dropdown_spec],
-                #     )
+                with gr.Column():
+                    file_output = gr.File()
+                    upload_spec = gr.UploadButton(file_types=[".yaml"], label="Upload Spec")
+                    upload_spec.upload(
+                        fn=handle_upload_spec,
+                        inputs=[upload_spec],
+                        outputs=[file_output, dropdown_spec],
+                    )
             with gr.Row():
                 spec.render()
 

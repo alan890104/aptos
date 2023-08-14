@@ -1,2 +1,6 @@
 venv/
 .vscode/
+specs/
+__pycache__/
+!specs/example.yaml
+!specs/example_mismatch.yaml
